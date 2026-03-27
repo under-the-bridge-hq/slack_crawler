@@ -32,8 +32,8 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
-# Binary
-slack-crawler
+# Binary（ルート直下のビルド成果物のみ）
+/slack-crawler
 
 # Session context (git管理対象外)
 .session-context.md

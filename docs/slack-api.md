@@ -2,8 +2,9 @@
 
 ## 認証
 
-- **Bot Token**（`xoxb-`）を使用
-- Slack App作成 → Bot Token Scopesを付与 → ワークスペースにインストール
+- **User Token**（`xoxp-`）推奨 — Bot招待なしでチャンネルをクロール可能
+- **Bot Token**（`xoxb-`）も利用可 — チャンネルへのBot招待が必要
+- Slack App作成 → Token Scopesを付与 → ワークスペースにインストール
 
 ## 必要なBot Token Scopes
 
@@ -69,11 +70,12 @@
 
 ## Slack Appセットアップ手順
 
-1. https://api.slack.com/apps にアクセス
-2. 「Create New App」→「From scratch」
-3. App名を設定（例: `slack-crawler`）、ワークスペースを選択
-4. 「OAuth & Permissions」→ Bot Token Scopesに上記スコープを追加
-5. 「Install to Workspace」でインストール
-6. Bot User OAuth Token（`xoxb-`で始まる）をコピー
-7. `.env` の `SLACK_BOT_TOKEN` に設定
-8. クロール対象チャンネルにBotを招待（`/invite @slack-crawler`）
+詳細は [セットアップガイド](setup.md) を参照。
+
+**概要:**
+
+1. https://api.slack.com/apps でApp作成
+2. User Token Scopes（推奨）またはBot Token Scopesに上記スコープを追加
+3. ワークスペースにインストールしてトークンをコピー
+4. `.env` に `SLACK_USER_TOKEN` または `SLACK_BOT_TOKEN` を設定
+5. Bot Token使用時のみ、クロール対象チャンネルにBotを招待（`/invite @slack-crawler`）
