@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/kaz-under-the-bridge/slack_crawler/internal/config"
-	"github.com/kaz-under-the-bridge/slack_crawler/internal/crawler"
-	"github.com/kaz-under-the-bridge/slack_crawler/internal/store"
+	"github.com/under-the-bridge-hq/slack_crawler/internal/config"
+	"github.com/under-the-bridge-hq/slack_crawler/internal/crawler"
+	"github.com/under-the-bridge-hq/slack_crawler/internal/store"
 )
 
 func main() {

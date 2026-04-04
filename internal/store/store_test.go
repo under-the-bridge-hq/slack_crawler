@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kaz-under-the-bridge/slack_crawler/internal/model"
+	"github.com/under-the-bridge-hq/slack_crawler/internal/model"
 )
 
 func setupTestStore(t *testing.T) *Store {

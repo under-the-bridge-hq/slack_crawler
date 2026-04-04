@@ -9,7 +9,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/kaz-under-the-bridge/slack_crawler/internal/store"
+	"github.com/under-the-bridge-hq/slack_crawler/internal/store"
 )
 
 // mockSlackClient はテスト用のSlack APIモック。

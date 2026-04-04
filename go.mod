@@ -1,4 +1,4 @@
-module github.com/kaz-under-the-bridge/slack_crawler
+module github.com/under-the-bridge-hq/slack_crawler
 
 go 1.25.0
 

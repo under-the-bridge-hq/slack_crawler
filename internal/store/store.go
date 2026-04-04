@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 
-	"github.com/kaz-under-the-bridge/slack_crawler/internal/model"
+	"github.com/under-the-bridge-hq/slack_crawler/internal/model"
 )
 
 // Store はSQLiteへのアクセスを提供する。
