@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestValidate_MissingToken(t *testing.T) {
 	cfg := &Config{}
@@ -50,9 +53,42 @@ func TestValidateForCrawl_MissingChannels(t *testing.T) {
 func TestValidateForCrawl_OK(t *testing.T) {
 	cfg := &Config{
 		SlackUserToken: "xoxp-test",
-		ChannelIDs:     []string{"C001"},
+		Channels:       []ChannelEntry{{ID: "C001", Name: "test"}},
 	}
 	if err := cfg.ValidateForCrawl(); err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestChannelIDs(t *testing.T) {
+	cfg := &Config{
+		Channels: []ChannelEntry{
+			{ID: "C001", Name: "general"},
+			{ID: "C002", Name: "random"},
+		},
+	}
+	ids := cfg.ChannelIDs()
+	if len(ids) != 2 || ids[0] != "C001" || ids[1] != "C002" {
+		t.Errorf("want [C001 C002], got %v", ids)
+	}
+}
+
+func TestLoadChannelsYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/channels.yml"
+	data := []byte("channels:\n  - id: C001\n    name: general\n  - id: C002\n    name: random\n")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	channels, err := loadChannelsYAML(path)
+	if err != nil {
+		t.Fatalf("loadChannelsYAML: %v", err)
+	}
+	if len(channels) != 2 {
+		t.Fatalf("want 2 channels, got %d", len(channels))
+	}
+	if channels[0].ID != "C001" || channels[0].Name != "general" {
+		t.Errorf("want C001/general, got %s/%s", channels[0].ID, channels[0].Name)
 	}
 }

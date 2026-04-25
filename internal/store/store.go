@@ -71,6 +71,25 @@ func (s *Store) migrate() error {
 			ON messages(thread_ts) WHERE thread_ts != ''`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_user_id
 			ON messages(user_id)`,
+		`CREATE TABLE IF NOT EXISTS users (
+			id           TEXT PRIMARY KEY,
+			name         TEXT NOT NULL,
+			real_name    TEXT DEFAULT '',
+			display_name TEXT DEFAULT '',
+			is_bot       INTEGER DEFAULT 0,
+			updated_at   TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS crawl_logs (
+			id               INTEGER PRIMARY KEY AUTOINCREMENT,
+			channel_id       TEXT NOT NULL,
+			started_at       TEXT NOT NULL,
+			finished_at      TEXT DEFAULT '',
+			messages_fetched INTEGER DEFAULT 0,
+			threads_fetched  INTEGER DEFAULT 0,
+			status           TEXT DEFAULT 'running',
+			error            TEXT DEFAULT '',
+			FOREIGN KEY (channel_id) REFERENCES channels(id)
+		)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.Exec(stmt); err != nil {
@@ -162,6 +181,117 @@ func (s *Store) ListChannels(ctx context.Context) ([]model.Channel, error) {
 	err := s.db.SelectContext(ctx, &channels,
 		`SELECT id, name, topic, purpose, is_private, member_count, created_at, updated_at FROM channels ORDER BY name`)
 	return channels, err
+}
+
+// UpsertUser はユーザー情報をINSERT or UPDATEする。
+func (s *Store) UpsertUser(ctx context.Context, u *model.User) error {
+	query := `INSERT INTO users (id, name, real_name, display_name, is_bot, updated_at)
+		VALUES (:id, :name, :real_name, :display_name, :is_bot, :updated_at)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			real_name = excluded.real_name,
+			display_name = excluded.display_name,
+			is_bot = excluded.is_bot,
+			updated_at = excluded.updated_at`
+	_, err := s.db.NamedExecContext(ctx, query, u)
+	return err
+}
+
+// GetDistinctUserIDs はmessagesテーブルから未登録のユーザーIDを返す。
+func (s *Store) GetDistinctUserIDs(ctx context.Context) ([]string, error) {
+	var ids []string
+	err := s.db.SelectContext(ctx, &ids,
+		`SELECT DISTINCT m.user_id FROM messages m
+		 LEFT JOIN users u ON m.user_id = u.id
+		 WHERE m.user_id != '' AND u.id IS NULL`)
+	return ids, err
+}
+
+// StartCrawlLog はクロール開始を記録しログIDを返す。
+func (s *Store) StartCrawlLog(ctx context.Context, channelID string) (int64, error) {
+	result, err := s.db.ExecContext(ctx,
+		`INSERT INTO crawl_logs (channel_id, started_at, status) VALUES (?, ?, 'running')`,
+		channelID, Now())
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+// CompleteCrawlLog はクロール完了を記録する。
+func (s *Store) CompleteCrawlLog(ctx context.Context, logID int64, msgCount, threadCount int) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE crawl_logs SET finished_at = ?, messages_fetched = ?, threads_fetched = ?, status = 'completed' WHERE id = ?`,
+		Now(), msgCount, threadCount, logID)
+	return err
+}
+
+// FailCrawlLog はクロール失敗を記録する。
+func (s *Store) FailCrawlLog(ctx context.Context, logID int64, errMsg string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE crawl_logs SET finished_at = ?, status = 'failed', error = ? WHERE id = ?`,
+		Now(), errMsg, logID)
+	return err
+}
+
+// GetThreadParents はreply_count > 0 のメッセージ（スレッド親）を返す。
+func (s *Store) GetThreadParents(ctx context.Context, channelID string) ([]*model.Message, error) {
+	var msgs []*model.Message
+	err := s.db.SelectContext(ctx, &msgs,
+		`SELECT ts, channel_id, user_id, text, thread_ts, reply_count, is_reply, subtype, raw_json, created_at, updated_at
+		 FROM messages WHERE channel_id = ? AND reply_count > 0 ORDER BY ts`, channelID)
+	return msgs, err
+}
+
+// GetStoredReplyCount は保存済みスレッド親のreply_countをmap[ts]intで返す。
+func (s *Store) GetStoredReplyCount(ctx context.Context, channelID string) (map[string]int, error) {
+	type row struct {
+		TS         string `db:"ts"`
+		ReplyCount int    `db:"reply_count"`
+	}
+	var rows []row
+	err := s.db.SelectContext(ctx, &rows,
+		`SELECT ts, reply_count FROM messages WHERE channel_id = ? AND reply_count > 0`, channelID)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]int, len(rows))
+	for _, r := range rows {
+		m[r.TS] = r.ReplyCount
+	}
+	return m, nil
+}
+
+// RawQuery は任意のSELECTクエリを実行し、カラム名と行データを返す。
+func (s *Store) RawQuery(ctx context.Context, query string) ([]string, [][]string, error) {
+	rows, err := s.db.QueryxContext(ctx, query)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var results [][]string
+	for rows.Next() {
+		cols, err := rows.SliceScan()
+		if err != nil {
+			return nil, nil, err
+		}
+		row := make([]string, len(cols))
+		for i, v := range cols {
+			if v == nil {
+				row[i] = "NULL"
+			} else {
+				row[i] = fmt.Sprintf("%v", v)
+			}
+		}
+		results = append(results, row)
+	}
+	return columns, results, rows.Err()
 }
 
 // Now はISO 8601形式の現在時刻文字列を返すヘルパー。

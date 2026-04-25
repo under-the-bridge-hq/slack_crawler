@@ -2,21 +2,43 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
+
+// ChannelEntry はチャンネル設定の1エントリ。
+type ChannelEntry struct {
+	ID   string `yaml:"id"`
+	Name string `yaml:"name"`
+}
 
 // Config はアプリケーション設定を保持する。
 type Config struct {
-	SlackBotToken  string   `mapstructure:"slack_bot_token"`
-	SlackUserToken string   `mapstructure:"slack_user_token"`
-	ChannelIDs     []string `mapstructure:"slack_channel_ids"`
-	DBPath         string   `mapstructure:"db_path"`
-	LogLevel       string   `mapstructure:"log_level"`
+	SlackBotToken  string         `mapstructure:"slack_bot_token"`
+	SlackUserToken string         `mapstructure:"slack_user_token"`
+	Channels       []ChannelEntry // channels.yml または SLACK_CHANNEL_IDS から
+	DBPath         string         `mapstructure:"db_path"`
+	LogLevel       string         `mapstructure:"log_level"`
 }
 
-// Load は環境変数・.envファイルから設定を読み込む。
+// ChannelIDs はチャンネルIDのスライスを返す（後方互換）。
+func (c *Config) ChannelIDs() []string {
+	ids := make([]string, len(c.Channels))
+	for i, ch := range c.Channels {
+		ids[i] = ch.ID
+	}
+	return ids
+}
+
+// channelsFile はchannels.ymlの構造。
+type channelsFile struct {
+	Channels []ChannelEntry `yaml:"channels"`
+}
+
+// Load は環境変数・.envファイル・channels.ymlから設定を読み込む。
 func Load() (*Config, error) {
 	v := viper.New()
 
@@ -36,18 +58,35 @@ func Load() (*Config, error) {
 	cfg.DBPath = v.GetString("db_path")
 	cfg.LogLevel = v.GetString("log_level")
 
-	// SLACK_CHANNEL_IDS はカンマ区切りで複数指定
-	raw := v.GetString("slack_channel_ids")
-	if raw != "" {
-		for _, id := range strings.Split(raw, ",") {
-			id = strings.TrimSpace(id)
-			if id != "" {
-				cfg.ChannelIDs = append(cfg.ChannelIDs, id)
+	// channels.yml を優先で読み込み
+	if channels, err := loadChannelsYAML("channels.yml"); err == nil && len(channels) > 0 {
+		cfg.Channels = channels
+	} else {
+		// フォールバック: SLACK_CHANNEL_IDS（カンマ区切り）
+		raw := v.GetString("slack_channel_ids")
+		if raw != "" {
+			for _, id := range strings.Split(raw, ",") {
+				id = strings.TrimSpace(id)
+				if id != "" {
+					cfg.Channels = append(cfg.Channels, ChannelEntry{ID: id})
+				}
 			}
 		}
 	}
 
 	return &cfg, nil
+}
+
+func loadChannelsYAML(path string) ([]ChannelEntry, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var f channelsFile
+	if err := yaml.Unmarshal(data, &f); err != nil {
+		return nil, fmt.Errorf("channels.yml parse: %w", err)
+	}
+	return f.Channels, nil
 }
 
 // SlackToken はUser Tokenを優先し、なければBot Tokenを返す。
@@ -71,8 +110,8 @@ func (c *Config) ValidateForCrawl() error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
-	if len(c.ChannelIDs) == 0 {
-		return fmt.Errorf("SLACK_CHANNEL_IDS が設定されていません")
+	if len(c.Channels) == 0 {
+		return fmt.Errorf("channels.yml または SLACK_CHANNEL_IDS が設定されていません")
 	}
 	return nil
 }

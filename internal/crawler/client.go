@@ -9,6 +9,8 @@ type SlackClient interface {
 	GetConversationHistory(params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationReplies(params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error)
 	GetConversationInfo(input *slack.GetConversationInfoInput) (*slack.Channel, error)
+	GetUserInfo(userID string) (*slack.User, error)
+	SearchMessages(query string, params slack.SearchParameters) (*slack.SearchMessages, error)
 }
 
 // slackClientWrapper はslack.Clientをインターフェースに適合させるラッパー。
@@ -30,4 +32,12 @@ func (w *slackClientWrapper) GetConversationReplies(params *slack.GetConversatio
 
 func (w *slackClientWrapper) GetConversationInfo(input *slack.GetConversationInfoInput) (*slack.Channel, error) {
 	return w.client.GetConversationInfo(input)
+}
+
+func (w *slackClientWrapper) GetUserInfo(userID string) (*slack.User, error) {
+	return w.client.GetUserInfo(userID)
+}
+
+func (w *slackClientWrapper) SearchMessages(query string, params slack.SearchParameters) (*slack.SearchMessages, error) {
+	return w.client.SearchMessages(query, params)
 }
