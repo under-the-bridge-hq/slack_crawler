@@ -43,6 +43,17 @@
   - `channel`: チャンネルID
   - `ts`: スレッド親メッセージのタイムスタンプ
 
+### search.messages
+
+- **用途**: メッセージ検索（チャンネル横断）
+- **Tier**: Tier 2 (20 req/min)
+- **ページネーション**: page番号ベース
+- **主要パラメータ**:
+  - `query`: Slack検索構文（`from:<@USER_ID>`, `in:#channel`, `after:YYYY-MM-DD` 等）
+  - `sort`: `timestamp`
+  - `count`: 1ページあたりの件数（最大100）
+- **注意**: User Tokenの `search:read` スコープが必要（Bot Tokenでは使用不可）
+
 ### users.info
 
 - **用途**: ユーザー情報取得

@@ -37,6 +37,7 @@ slack-crawlerは2種類のトークンに対応している。用途に応じて
 | `channels:read` | パブリックチャンネルの情報取得 |
 | `groups:history` | プライベートチャンネルのメッセージ取得 |
 | `groups:read` | プライベートチャンネルの情報取得 |
+| `search:read` | メッセージ検索（crawl-searchコマンド用） |
 
 ### Bot Tokenを使う場合
 

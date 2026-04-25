@@ -53,7 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_user_id
 
 ### users
 
-ユーザー情報（MVP3で追加）。
+ユーザー情報。クロール後に未登録ユーザーを自動取得。
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 ### crawl_logs
 
-クロール実行履歴（MVP2で追加）。
+クロール実行履歴。crawlコマンド実行時に自動記録。
 
 ```sql
 CREATE TABLE IF NOT EXISTS crawl_logs (
