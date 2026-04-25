@@ -129,7 +129,7 @@ func TestCrawlMessages(t *testing.T) {
 	// チャンネルを先に保存
 	cr.FetchChannel(ctx, "C001")
 
-	total, err := cr.CrawlMessages(ctx, "C001", "")
+	total, err := cr.CrawlMessages(ctx, "C001", "", "")
 	if err != nil {
 		t.Fatalf("CrawlMessages: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestCrawlMessages_WithOldest(t *testing.T) {
 
 	// oldestパラメータ付きで呼ぶ（レスポンスは空でOK）
 	_ = called
-	_, err := cr.CrawlMessages(ctx, "C001", "1700000000.000000")
+	_, err := cr.CrawlMessages(ctx, "C001", "1700000000.000000", "")
 	if err != nil {
 		t.Fatalf("CrawlMessages with oldest: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestCrawlThreadReplies(t *testing.T) {
 	ctx := context.Background()
 
 	cr.FetchChannel(ctx, "C001")
-	cr.CrawlMessages(ctx, "C001", "")
+	cr.CrawlMessages(ctx, "C001", "", "")
 
 	parents, err := s.GetThreadParents(ctx, "C001")
 	if err != nil {

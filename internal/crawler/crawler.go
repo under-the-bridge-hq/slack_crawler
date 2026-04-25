@@ -62,8 +62,8 @@ func (c *Crawler) FetchChannel(ctx context.Context, channelID string) (*model.Ch
 }
 
 // CrawlMessages はチャンネルの全メッセージを取得しDBに保存する。
-// oldest が空でなければそれ以降のメッセージのみ取得する（差分クロール）。
-func (c *Crawler) CrawlMessages(ctx context.Context, channelID string, oldest string) (int, error) {
+// oldest/latest が空でなければ期間を絞り込む。
+func (c *Crawler) CrawlMessages(ctx context.Context, channelID string, oldest, latest string) (int, error) {
 	total := 0
 	cursor := ""
 
@@ -81,6 +81,9 @@ func (c *Crawler) CrawlMessages(ctx context.Context, channelID string, oldest st
 		}
 		if oldest != "" {
 			params.Oldest = oldest
+		}
+		if latest != "" {
+			params.Latest = latest
 		}
 
 		resp, err := c.client.GetConversationHistory(params)

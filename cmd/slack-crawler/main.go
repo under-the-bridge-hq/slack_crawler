@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -37,7 +38,11 @@ func rootCmd() *cobra.Command {
 }
 
 func crawlCmd() *cobra.Command {
-	var channelFlag string
+	var (
+		channelFlag string
+		sinceFlag   string
+		untilFlag   string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "crawl",
@@ -100,13 +105,35 @@ func crawlCmd() *cobra.Command {
 					return fmt.Errorf("保存済みreply_count取得失敗: %w", err)
 				}
 
-				// 差分クロール: 前回の最新TSを取得
-				oldest, _ := s.GetLatestTS(ctx, chID)
-				if oldest != "" {
-					logger.Info("差分クロール", "oldest", oldest)
+				// 期間指定: --sinceが指定されていればそちらを優先、なければ差分クロール
+				oldest := ""
+				if sinceFlag != "" {
+					ts, err := dateToSlackTS(sinceFlag)
+					if err != nil {
+						s.FailCrawlLog(ctx, logID, err.Error())
+						return err
+					}
+					oldest = ts
+					logger.Info("期間指定クロール", "since", sinceFlag)
+				} else {
+					oldest, _ = s.GetLatestTS(ctx, chID)
+					if oldest != "" {
+						logger.Info("差分クロール", "oldest", oldest)
+					}
 				}
 
-				total, err := cr.CrawlMessages(ctx, chID, oldest)
+				latest := ""
+				if untilFlag != "" {
+					ts, err := dateToSlackTS(untilFlag)
+					if err != nil {
+						s.FailCrawlLog(ctx, logID, err.Error())
+						return err
+					}
+					latest = ts
+					logger.Info("期間指定クロール", "until", untilFlag)
+				}
+
+				total, err := cr.CrawlMessages(ctx, chID, oldest, latest)
 				if err != nil {
 					s.FailCrawlLog(ctx, logID, err.Error())
 					return fmt.Errorf("チャンネル %s のクロール失敗: %w", chID, err)
@@ -167,6 +194,8 @@ func crawlCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&channelFlag, "channel", "", "クロール対象チャンネルID（環境変数より優先）")
+	cmd.Flags().StringVar(&sinceFlag, "since", "", "取得開始日 (例: 2026-01-01)")
+	cmd.Flags().StringVar(&untilFlag, "until", "", "取得終了日 (例: 2026-03-31)")
 	return cmd
 }
 
@@ -391,6 +420,14 @@ func queryCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func dateToSlackTS(dateStr string) (string, error) {
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return "", fmt.Errorf("日付形式が不正です（YYYY-MM-DD）: %w", err)
+	}
+	return fmt.Sprintf("%d.000000", t.Unix()), nil
 }
 
 func newLogger(level string) *slog.Logger {
